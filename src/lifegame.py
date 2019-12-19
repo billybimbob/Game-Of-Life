@@ -1,4 +1,5 @@
 from random import randint
+from time import sleep
 from typing import List, Callable
 import argparse
 
@@ -26,7 +27,7 @@ class Board:
 
             def neighbor_val(p_row, p_col):
                 return data[norm_idx(p_row)][norm_idx(p_col, False)]
-            
+
             mods = [-1, 0, 1] #assume square grid
             look = [ neighbor_val(row+rmod, col+cmod) for rmod in mods for cmod in mods \
                 if rmod!=0 or cmod!=0 ] #exclude spot
@@ -34,7 +35,7 @@ class Board:
 
         def check_start(board: List[list]): #easier check, and creates copy
             max_width = 0
-            board_copy = [] 
+            board_copy = []
             for row in board:
                 if len(row) > max_width: max_width = len(row)
                 #default unknown values to 0
@@ -43,7 +44,7 @@ class Board:
             for row in board_copy: #make all width the same
                 diff = max_width - len(row) #should never be 0
                 row.extend([0]*diff)
-            
+
             return board_copy
 
         if check_alive is None:    check_alive = default_check
@@ -98,14 +99,15 @@ class Board:
 
 class Game:
 
-    def __init__(self, *, width=10, height=10, 
-        start_state: List[list] = None, 
-        neighbors: Callable[[int, int, int, int, int], int] = None, 
+    def __init__(self, *, width=10, height=10,
+        start_state: List[list] = None,
+        alive: Callable[[int, int], int] = None,
+        neighbors: Callable[[int, int, int, int, int], int] = None,
         render: Callable[[str], None] = None):
-        
+
         def default_render(board_info):
-            return print(board_info)
-            
+            print(board_info)
+
         if render is None: render = default_render
         self.render = render
         self.board = Board(width, height, start=start_state, find_neighbors=neighbors)
@@ -130,23 +132,26 @@ class Game:
             self.render(str(self.board))
             self.board.update()
             count += 1
+            sleep(1)
+
+
+
+def zero_board(width, height):
+    return [ [0]*width for _ in range(height)]
+def alive_board(width, height):
+    return [ [1]*width for _ in range(height)]
+
+def no_wrap_neighbors(data, width, height, row, col):
+    def in_bounds(m_row, m_col):
+        return m_row >= 0 and m_row < height \
+            and m_col >= 0 and m_col < width
+
+    mods = [-1, 0, 1]
+    checking = [data[row+r][col+c] for r in mods for c in mods if (r!=0 or c!=0) and in_bounds(row+r, col+c)]
+    return sum(checking)
 
 
 if __name__ == "__main__":
-
-    def zero_board(width, height):
-        return [ [0]*width for _ in range(height)]
-    def alive_board(width, height):
-        return [ [1]*width for _ in range(height)]
-
-    def no_wrap_neighbors(data, width, height, row, col):
-        def in_bounds(m_row, m_col):
-            return m_row >= 0 and m_row < height \
-                and m_col >= 0 and m_col < width
-
-        mods = [-1, 0, 1]
-        checking = [data[row+r][col+c] for r in mods for c in mods if (r!=0 or c!=0) and in_bounds(row+r, col+c)]
-        return sum(checking)
 
     # test = Game(start_state=alive_board(3, 5))
     init_state1 = [
