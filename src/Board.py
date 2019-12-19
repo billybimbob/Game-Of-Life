@@ -1,11 +1,10 @@
 from random import randint
+from typing import List, Callable
 import argparse
 
 class Board:
-    def __init__(self, width, height, *, gen_start=None, check_alive=None, find_neighbors=None):
-        def default_start(): #don't do anything with params
-            return [[randint(0, 1) for _ in range(width)] for _ in range(height)]
-        
+    def __init__(self, width, height, *, start=None, check_alive=None, find_neighbors=None):
+
         def default_check(spot, neighbors):
             if spot == 1:
                 return 1 if neighbors==2 or neighbors==3 else 0
@@ -33,20 +32,36 @@ class Board:
                 if rmod!=0 or cmod!=0 ] #exclude spot
             return sum(look) #assume 1 or 0 val, could change
 
-        if gen_start is None:      gen_start = default_start
+        def check_start(board: List[list]): #easier check, and creates copy
+            max_width = 0
+            board_copy = [] 
+            for row in board:
+                if len(row) > max_width: max_width = len(row)
+                #default unknown values to 0
+                board_copy.append([val if val==0 or val==1 else 0 for val in row])
+
+            for row in board_copy: #make all width the same
+                diff = max_width - len(row) #should never be 0
+                row.extend([0]*diff)
+            
+            return board_copy
+
         if check_alive is None:    check_alive = default_check
         if find_neighbors is None: find_neighbors = default_neighbors
+        if start is None:
+            start = [[randint(0, 1) for _ in range(width)] for _ in range(height)]
 
-        self.width = width
-        self.height = height
-        self.data = gen_start() #could potentially not be 0 or 1
+        self.data = check_start(start)
+        self.width = len(self.data[0]) #dim based on normed start
+        self.height = len(self.data)
+
         self.check_alive = check_alive
         self.find_neighbors = find_neighbors
 
 
     def update(self): #updates for one cycle
         def new_alive(row, col):
-            return self.check_alive(
+            return self.check_alive (
                 self.data[row][col],
                 self.find_neighbors(self.data, self.width, self.height, row, col)
             )
@@ -54,7 +69,7 @@ class Board:
         self.data = [ [new_alive(row,col) for col in range(self.width)] for row in range(self.height) ]
 
     def __str__(self):
-        accum = []
+        accum: List[str] = []
         for row in range(self.height):
             accum.append('|')
             for col in range(self.width):
@@ -82,15 +97,18 @@ class Board:
 
 
 class Game:
-    def __init__(self, *, width=10, height=10, start_state=None, neighbors=None):
-        if start_state is not None: #assume 2d grid
-            def get_start():
-                return start_state
-            width = len(start_state[0])
-            height = len(start_state)
-            self.board = Board(width, height, gen_start=get_start, find_neighbors=neighbors)
-        else:
-            self.board = Board(width, height, find_neighbors=neighbors) #add later
+
+    def __init__(self, *, width=10, height=10, 
+        start_state: List[list] = None, 
+        neighbors: Callable[[int, int, int, int, int], int] = None, 
+        render: Callable[[str], None] = None):
+        
+        def default_render(board_info):
+            return print(board_info)
+            
+        if render is None: render = default_render
+        self.render = render
+        self.board = Board(width, height, start=start_state, find_neighbors=neighbors)
 
     @staticmethod
     def read_start(file_name):
@@ -98,26 +116,28 @@ class Game:
             values = [ [int(char) for char in line if char=='0' or char=='1'] for line in reading ]
             return values
 
-    def loop(self, loops=0):
-        count = 0
-        while loops==0 or count<=loops:
-            print(self.board)
-            self.board.update()
-            count += 1
-
-
-if __name__ == "__main__":
-    def zero_board(width, height):
-        return [ [0]*width for _ in range(height)]
-    def alive_board(width, height):
-        return [ [1]*width for _ in range(height)]
-
+    @staticmethod
     def parse_arguements():
         parser = argparse.ArgumentParser()
         parser.add_argument("--file", "-f",   help="file to set the start state")
         parser.add_argument("--cycles", "-c", help="number of cycles for the board")
 
         return parser.parse_args()
+
+    def loop(self, loops=0):
+        count = 0
+        while loops==0 or count<=loops:
+            self.render(str(self.board))
+            self.board.update()
+            count += 1
+
+
+if __name__ == "__main__":
+
+    def zero_board(width, height):
+        return [ [0]*width for _ in range(height)]
+    def alive_board(width, height):
+        return [ [1]*width for _ in range(height)]
 
     def no_wrap_neighbors(data, width, height, row, col):
         def in_bounds(m_row, m_col):
@@ -142,7 +162,7 @@ if __name__ == "__main__":
     ]
     #test = Game(start_state=init_state1, neighbors=no_wrap_neighbors)
 
-    args = parse_arguements()
+    args = Game.parse_arguements()
     start = Game.read_start(args.file) if args.file else init_state2
 
     test = Game(start_state=start)
