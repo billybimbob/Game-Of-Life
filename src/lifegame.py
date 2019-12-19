@@ -1,5 +1,4 @@
 from random import randint
-from time import sleep
 from typing import List, Callable
 import argparse
 
@@ -70,13 +69,17 @@ class Board:
         self.data = [ [new_alive(row,col) for col in range(self.width)] for row in range(self.height) ]
 
     def __str__(self):
+        edges = ['|'] + ['-']*self.width + ['|\n']
+
         accum: List[str] = []
+        accum.extend(edges)
         for row in range(self.height):
             accum.append('|')
             for col in range(self.width):
                 char = ' ' if self.data[row][col]==0 else '#'
                 accum.append(char)
             accum.append('|\n')
+        accum.extend(edges)
 
         return ''.join(accum)
 
@@ -98,7 +101,6 @@ class Board:
 
 
 class Game:
-
     def __init__(self, *, width=10, height=10,
         start_state: List[list] = None,
         alive: Callable[[int, int], int] = None,
@@ -126,18 +128,18 @@ class Game:
 
         return parser.parse_args()
 
-    def loop(self, loops=0):
+    def run(self, limit=1):
         count = 0
-        while loops==0 or count<=loops:
+        while count<limit:
             self.render(str(self.board))
             self.board.update()
             count += 1
-            sleep(1)
 
 
 
 def zero_board(width, height):
     return [ [0]*width for _ in range(height)]
+
 def alive_board(width, height):
     return [ [1]*width for _ in range(height)]
 
@@ -171,4 +173,4 @@ if __name__ == "__main__":
     start = Game.read_start(args.file) if args.file else init_state2
 
     test = Game(start_state=start)
-    test.loop(4)
+    test.run(4)
